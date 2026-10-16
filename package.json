@@ -23,5 +23,12 @@
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
+  "expo": {
+    "autolinking": {
+      "android": {
+        "buildFromSource": [".*"]
+      }
+    }
+  },
   "private": true
 }

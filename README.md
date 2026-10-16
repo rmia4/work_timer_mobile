@@ -34,6 +34,7 @@ npx expo run:android
 - Windows 긴 경로: C++ 코드 생성 결과 경로가 260자를 넘으므로 `LongPathsEnabled`를 켜야 합니다(관리자 PowerShell, 재부팅 필요).
   `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
 - CMake 3.31.6: 긴 경로를 다루는 ninja가 들어 있습니다. [plugins/with-cmake-version.js](plugins/with-cmake-version.js)가 앱 빌드에 이 버전을 지정합니다. 없으면 Android Studio SDK Manager나 `sdkmanager "cmake;3.31.6"`으로 설치합니다.
+- Expo 모듈은 미리 컴파일된 AAR 대신 소스에서 빌드합니다(`package.json`의 `expo.autolinking.android.buildFromSource`). SDK 58에서 `expo-crypto` 58.0.6 AAR이 `expo-modules-core` 58.0.20과 맞지 않아 `NoSuchMethodError`(…`__trampoline$ExpoModulesV2`)가 났습니다. Expo가 AAR을 다시 내면 지워도 됩니다.
 - pnpm은 `pnpm-workspace.yaml`의 `nodeLinker: hoisted`로 평평한 `node_modules`를 씁니다(네이티브 빌드 경로를 줄이기 위함).
 - 타입 검사: `npx tsc --noEmit`
 
