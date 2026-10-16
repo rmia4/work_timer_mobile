@@ -1,36 +1,51 @@
 import { StatusBar } from 'expo-status-bar';
-import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { isSignedIn, onSignedOut } from './src/auth';
+import { call, onUnauthorized, renewSession } from './src/api';
 import LoginScreen from './src/LoginScreen';
-import TimerScreen from './src/TimerScreen';
+import MainScreen from './src/MainScreen';
+import { ThemeProvider, useTheme } from './src/theme';
 
-WebBrowser.maybeCompleteAuthSession();
+function Root() {
+  const { c } = useTheme();
+  const [state, setState] = useState<'loading' | 'signedOut' | 'signedIn'>('loading');
+  // 로그인 쿠키가 아직 유효한지 확인한다. 유효하면 세션도 늘린다.
+  const check = useCallback(async () => {
+    const r = await call('/api/auth', { method: 'PATCH' }).catch(() => null);
+    // 연결이 안 되면 일단 화면을 열고 오류는 각 화면이 보여 준다.
+    const signedIn = r ? r.status !== 401 : true;
+    setState(signedIn ? 'signedIn' : 'signedOut');
+    return signedIn;
+  }, []);
+  useEffect(() => {
+    onUnauthorized(() => setState('signedOut'));
+    check();
+  }, [check]);
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
+      {state === 'loading' ? (
+        <ActivityIndicator style={styles.container} color={c.accent} />
+      ) : state === 'signedOut' ? (
+        <LoginScreen onSignedIn={check} />
+      ) : (
+        <MainScreen onRenew={renewSession} onSignedOut={() => setState('signedOut')} />
+      )}
+      <StatusBar style={c.dark ? 'light' : 'dark'} />
+    </SafeAreaView>
+  );
+}
 
 export default function App() {
-  const [state, setState] = useState<'loading' | 'signedOut' | 'signedIn'>('loading');
-  useEffect(() => {
-    onSignedOut(() => setState('signedOut'));
-    isSignedIn().then((signedIn) => setState(signedIn ? 'signedIn' : 'signedOut'));
-  }, []);
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        {state === 'loading' ? (
-          <ActivityIndicator style={styles.container} />
-        ) : state === 'signedOut' ? (
-          <LoginScreen onSignedIn={() => setState('signedIn')} />
-        ) : (
-          <TimerScreen onSignedOut={() => setState('signedOut')} />
-        )}
-        <StatusBar style="dark" />
-      </SafeAreaView>
+      <ThemeProvider>
+        <Root />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
+  container: { flex: 1 },
 });
