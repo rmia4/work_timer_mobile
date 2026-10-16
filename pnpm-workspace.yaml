@@ -1,3 +1,5 @@
+allowBuilds:
+  unrs-resolver: set this to true or false
 minimumReleaseAgeExclude:
   - '@expo/cli@58.1.10'
   - '@expo/metro-config@58.0.14'
@@ -21,4 +23,5 @@ minimumReleaseAgeExclude:
   - expo-modules-jsi@58.0.14
   - expo@58.0.12
   - react-native@0.88.0
+  - react-native-svg@15.16.0
 nodeLinker: hoisted

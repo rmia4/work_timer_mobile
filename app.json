@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.github.rmia4.worktimer"
@@ -24,6 +24,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["./plugins/with-cmake-version"]
+    "plugins": [
+      "./plugins/with-cmake-version",
+      "expo-sharing"
+    ]
   }
 }

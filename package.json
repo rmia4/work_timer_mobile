@@ -4,14 +4,15 @@
   "main": "index.ts",
   "dependencies": {
     "expo": "~58.0.12",
-    "expo-auth-session": "~58.0.12",
-    "expo-crypto": "~58.0.6",
+    "expo-clipboard": "~58.0.3",
+    "expo-file-system": "~58.0.9",
     "expo-secure-store": "~58.0.2",
+    "expo-sharing": "~58.0.18",
     "expo-status-bar": "~58.0.3",
-    "expo-web-browser": "~58.0.6",
     "react": "19.3.0",
     "react-native": "0.88.0",
-    "react-native-safe-area-context": "~5.10.1"
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-svg": "15.16.0"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
@@ -26,7 +27,9 @@
   "expo": {
     "autolinking": {
       "android": {
-        "buildFromSource": [".*"]
+        "buildFromSource": [
+          ".*"
+        ]
       }
     }
   },
