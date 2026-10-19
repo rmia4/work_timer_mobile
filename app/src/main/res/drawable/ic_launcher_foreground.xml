@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 런처 아이콘 시계. 웹앱 public/favicon.svg(viewBox 32)를 108dp 캔버스의 안전 영역(66dp) 안에 64dp로 그린다. 단색 아이콘에도 쓴다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="2"
+        android:scaleY="2"
+        android:translateX="22"
+        android:translateY="22">
+        <path
+            android:pathData="M16,6a10,10 0,1 1,0 20a10,10 0,1 1,0 -20z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="2" />
+        <path
+            android:pathData="M16,9v7l5,3"
+            android:strokeColor="#FF88ADFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="2.5" />
+    </group>
+</vector>
