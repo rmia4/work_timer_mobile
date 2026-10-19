@@ -56,6 +56,29 @@ app/src/main/java/io/github/rmia4/worktimer/
 - 세션은 7일입니다. 앱이 열리거나 앞으로 돌아올 때 `PATCH /api/auth`로 세션을 연장합니다.
 - 10초마다 기록을 다시 불러와 다른 기기의 변경을 반영합니다.
 
+## 릴리스 빌드
+
+Play 스토어에 올릴 AAB는 업로드 키로 서명합니다. 키 정보는 git에 넣지 않습니다(`keystore.properties`, `*.jks`는 `.gitignore`에 있음).
+
+1. 업로드 키를 한 번 만들고 저장소 밖에 백업합니다.
+
+   ```bash
+   keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. 프로젝트 루트에 `keystore.properties`를 만듭니다. `storeFile`은 프로젝트 루트 기준 경로나 절대 경로입니다.
+
+   ```properties
+   storeFile=upload.jks
+   storePassword=...
+   keyAlias=upload
+   keyPassword=...
+   ```
+
+3. `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`. `keystore.properties`가 없으면 서명 없는 AAB가 나옵니다.
+
+올릴 때마다 `app/build.gradle.kts`의 `versionCode`를 1씩 늘리고 `versionName`을 올립니다.
+
 ## 브랜치
 
 `main`은 배포용이고 `dev`에서만 병합합니다. 작업은 `dev`에서 브랜치를 따서 `dev`로 PR을 엽니다.
