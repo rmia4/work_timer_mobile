@@ -1,5 +1,6 @@
 package io.github.rmia4.worktimer.ui.memo
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -346,6 +347,7 @@ private fun MemoCard(card: MemoCardState, collapsible: Boolean, canUp: Boolean, 
     Column(
         Modifier
             .fillMaxWidth()
+            .background(c.bg, RoundedCornerShape(8.dp))
             .border(1.dp, c.line, RoundedCornerShape(8.dp))
             .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
     ) {
