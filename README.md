@@ -56,17 +56,37 @@ app/src/main/java/io/github/rmia4/worktimer/
 - 세션은 7일입니다. 앱이 열리거나 앞으로 돌아올 때 `PATCH /api/auth`로 세션을 연장합니다.
 - 10초마다 기록을 다시 불러와 다른 기기의 변경을 반영합니다.
 
-## 릴리스 빌드
+## 설치
 
-Play 스토어에 올릴 AAB는 업로드 키로 서명합니다. 키 정보는 git에 넣지 않습니다(`keystore.properties`, `*.jks`는 `.gitignore`에 있음).
+[Releases](https://github.com/rmia4/work_timer_mobile/releases)에서 최신 `work-timer-X.Y.Z.apk`를 휴대전화로 받아 엽니다. 처음 한 번은 브라우저(또는 파일 앱)에 "출처를 알 수 없는 앱 설치"를 허용해야 합니다. 새 버전도 같은 방법으로 덮어 설치하면 로그인과 설정이 그대로 남습니다.
 
-1. 업로드 키를 한 번 만들고 저장소 밖에 백업합니다.
+## 릴리스
+
+`vX.Y.Z` 태그를 올리면 GitHub Actions([.github/workflows/release.yml](.github/workflows/release.yml))가 서명된 release APK를 빌드해 같은 이름의 GitHub Release에 붙입니다. 이미 있는 태그는 Actions 탭 → Release APK → Run workflow에 태그 이름을 넣어 다시 만듭니다.
+
+1. `app/build.gradle.kts`의 `versionCode`를 1 늘리고 `versionName`을 올립니다. versionCode가 낮으면 덮어 설치가 되지 않습니다.
+2. `dev` → `main` 병합 뒤 `main`에 `vX.Y.Z` 태그를 달고 올립니다.
+
+### 서명 키
+
+덮어 설치는 같은 키로 서명한 APK끼리만 됩니다. 키를 잃어버리면 사용자가 앱을 지우고 다시 설치해야 하니 저장소 밖에 백업합니다. 키 정보는 git에 넣지 않습니다(`keystore.properties`, `*.jks`는 `.gitignore`에 있음).
+
+1. 키를 한 번 만듭니다.
 
    ```bash
    keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
    ```
 
-2. 프로젝트 루트에 `keystore.properties`를 만듭니다. `storeFile`은 프로젝트 루트 기준 경로나 절대 경로입니다.
+2. 저장소 Settings → Secrets and variables → Actions에 시크릿 네 개를 넣습니다.
+
+   | 이름 | 값 |
+   |---|---|
+   | `KEYSTORE_BASE64` | `base64 -w0 upload.jks`의 출력 |
+   | `KEYSTORE_PASSWORD` | 키 저장소 비밀번호 |
+   | `KEY_ALIAS` | `upload` |
+   | `KEY_PASSWORD` | 키 비밀번호 |
+
+3. 로컬에서 서명된 APK가 필요하면 프로젝트 루트에 `keystore.properties`를 만들고 `./gradlew assembleRelease`를 돌립니다(`app/build/outputs/apk/release/app-release.apk`). `storeFile`은 프로젝트 루트 기준 경로나 절대 경로입니다. 파일이 없으면 서명 없는 APK가 나옵니다.
 
    ```properties
    storeFile=upload.jks
@@ -74,10 +94,6 @@ Play 스토어에 올릴 AAB는 업로드 키로 서명합니다. 키 정보는 
    keyAlias=upload
    keyPassword=...
    ```
-
-3. `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`. `keystore.properties`가 없으면 서명 없는 AAB가 나옵니다.
-
-올릴 때마다 `app/build.gradle.kts`의 `versionCode`를 1씩 늘리고 `versionName`을 올립니다.
 
 ## 브랜치
 
