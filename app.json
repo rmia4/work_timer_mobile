@@ -26,7 +26,8 @@
     },
     "plugins": [
       "./plugins/with-cmake-version",
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

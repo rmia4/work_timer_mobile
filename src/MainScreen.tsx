@@ -25,7 +25,7 @@ const VIEWS: [Screen, string][] = [
 ];
 const VIEW_KEY = 'view'; // 마지막으로 연 화면(앱을 다시 열면 그대로 보여 준다)
 
-// 크롬 확장 popup.js의 상태와 동작이다. 화면은 상단 막대로 바꾸고, 한 번 연 화면은 숨겨 둘 뿐 입력 내용을 유지한다.
+// 크롬 확장 popup.js의 상태와 동작이다. 화면은 하단 탭으로 바꾸고, 한 번 연 화면은 숨겨 둘 뿐 입력 내용을 유지한다.
 export default function MainScreen({ onRenew, onSignedOut }: { onRenew: () => void; onSignedOut: () => void }) {
   const { c, toggle } = useTheme();
   const insets = useSafeAreaInsets();
@@ -189,12 +189,7 @@ export default function MainScreen({ onRenew, onSignedOut }: { onRenew: () => vo
   return (
     <View style={[styles.flex, { backgroundColor: c.page }]}>
       <View style={[styles.nav, { backgroundColor: c.bg, borderBottomColor: c.line }]}>
-        {VIEWS.map(([v, text], i) => (
-          <Pressable key={v} accessibilityRole="tab" accessibilityState={{ selected: view === v }} onPress={() => setView(v)} style={styles.navItem}>
-            {i > 0 ? <View style={[styles.navLine, { borderLeftColor: c.line }]} /> : null}
-            <Text style={{ fontSize: 15, color: view === v ? c.fg : c.muted, fontWeight: view === v ? '600' : '400' }}>{text}</Text>
-          </Pressable>
-        ))}
+        <Text accessibilityRole="header" style={[styles.title, { color: c.fg }]}>{VIEWS.find(([v]) => v === view)?.[1]}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="설정" onPress={() => setMenu(true)} style={styles.gear} hitSlop={8}>
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={c.muted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <Circle cx={12} cy={12} r={3} />
@@ -251,6 +246,15 @@ export default function MainScreen({ onRenew, onSignedOut }: { onRenew: () => vo
         </View>
       ) : null}
 
+      <View style={[styles.tabs, { backgroundColor: c.bg, borderTopColor: c.line }]}>
+        {VIEWS.map(([v, text], i) => (
+          <Pressable key={v} accessibilityRole="tab" accessibilityState={{ selected: view === v }} onPress={() => setView(v)} style={styles.tab}>
+            {i > 0 ? <View style={[styles.navLine, { borderLeftColor: c.line }]} /> : null}
+            <Text style={{ fontSize: 15, color: view === v ? c.fg : c.muted, fontWeight: view === v ? '600' : '400' }}>{text}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {/* 설정 버튼 아래에 붙는 메뉴. 바깥을 누르거나 뒤로 가기로 닫힌다. */}
       <Modal visible={menu} transparent animationType="fade" onRequestClose={() => setMenu(false)}>
         <Pressable style={styles.flex} onPress={() => setMenu(false)}>
@@ -290,9 +294,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   hidden: { display: 'none' },
   main: { padding: 16, gap: 8 },
-  nav: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: 1 },
-  navItem: { minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
-  navLine: { position: 'absolute', left: 0, top: 17, height: 14, borderLeftWidth: 1 },
+  nav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 8, borderBottomWidth: 1 },
+  title: { paddingHorizontal: 8, fontSize: 17, fontWeight: '600' },
+  tabs: { flexDirection: 'row', borderTopWidth: 1 },
+  tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  navLine: { position: 'absolute', left: 0, top: 19, height: 14, borderLeftWidth: 1 },
   gear: { marginLeft: 'auto', padding: 10 },
   menu: { position: 'absolute', right: 8, minWidth: 180, padding: 4, borderWidth: 1, borderRadius: 8, elevation: 6 },
   menuItem: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 4 },

@@ -1,35 +1,43 @@
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import ActivityClock, { activitySegments } from './ActivityClock';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import ActivityClock, { activitySegments, type Segment } from './ActivityClock';
 import { download, errorText } from './api';
 import { duration, today, type Task } from './dates';
 import { summaryPrompt } from './exportPrompt';
 import { useTheme } from './theme';
 import { useTick } from './TimerView';
-import { Button, Dialog, ErrorText, Field, Hint, Label, Row, s } from './ui';
+import { Button, Dialog, ErrorText, Hint, Label, Row, s } from './ui';
 
 // 크롬 확장 요약 화면: 일지에서 고른 날짜의 측정 시간과 하루 활동 시계. 시계는 1분마다 다시 그린다.
 export default function SummaryView({ day, tasks, now, active }: { day: string; tasks: Task[]; now: () => number; active: boolean }) {
   const { c } = useTheme();
   useTick(active ? 60000 : 3600000);
   const [csv, setCsv] = useState(false);
+  const [picked, setPicked] = useState<Segment | null>(null); // 활동 시계에서 누른 구간
+  useEffect(() => {
+    if (!active) setPicked(null);
+  }, [active]);
   const at = now();
   const segments = activitySegments(tasks, day, at);
   const list = tasks.filter((t) => t.day === day);
   return (
-    <ScrollView contentContainerStyle={styles.main}>
-      <View style={styles.head}>
-        <Text style={[styles.total, s.tabular, { color: c.fg }]}>{duration(segments.reduce((sum, x) => sum + x.end - x.start, 0))}</Text>
-        <Button title="CSV" variant="outline" small onPress={() => setCsv(true)} />
-      </View>
-      <Text style={{ color: c.muted, fontSize: 13 }}>
-        {day === today() ? '오늘' : day} 측정 시간 · 작업 {list.length}개 · 완료 {list.filter((t) => t.status === 'done').length}개
-      </Text>
-      <ActivityClock segments={segments} now={at} />
-      {csv ? <CsvDialog day={day} onClose={() => setCsv(false)} /> : null}
+    <ScrollView contentContainerStyle={styles.grow}>
+      {/* 빈 곳을 누르면 시계 구간 설명을 닫는다. 버튼·구간은 자기 누름을 먼저 받는다. */}
+      <Pressable accessible={false} onPress={() => setPicked(null)} style={styles.main}>
+        <View style={styles.head}>
+          <Text style={[styles.total, s.tabular, { color: c.fg }]}>{duration(segments.reduce((sum, x) => sum + x.end - x.start, 0))}</Text>
+          <Button title="CSV" variant="outline" small onPress={() => setCsv(true)} />
+        </View>
+        <Text style={{ color: c.muted, fontSize: 13 }}>
+          {day === today() ? '오늘' : day} 측정 시간 · 작업 {list.length}개 · 완료 {list.filter((t) => t.status === 'done').length}개
+        </Text>
+        <ActivityClock segments={segments} now={at} picked={picked} setPicked={setPicked} />
+        {csv ? <CsvDialog day={day} onClose={() => setCsv(false)} /> : null}
+      </Pressable>
     </ScrollView>
   );
 }
@@ -93,9 +101,9 @@ function CsvDialog({ day, onClose }: { day: string; onClose: () => void }) {
     <Dialog visible onClose={onClose} title="데이터 내보내기" closeButton>
       <Hint>선택한 기간의 업무 기록을 CSV 파일로 저장합니다. (최대 366일)</Hint>
       <Label>시작일</Label>
-      <Field value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} />
+      <DateField value={from} onChange={setFrom} />
       <Label>종료일</Label>
-      <Field value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} />
+      <DateField value={to} onChange={setTo} />
       <Label>내보내기 범위</Label>
       <View style={styles.scopes}>
         {SCOPES.map(([value, text]) => (
@@ -120,10 +128,34 @@ function CsvDialog({ day, onClose }: { day: string; onClose: () => void }) {
   );
 }
 
+// 날짜(YYYY-MM-DD)를 기기의 달력으로 고른다. Android는 누르면 달력 창을 띄우고, iOS는 기본 날짜 버튼을 그대로 쓴다.
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const toDate = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const fromDate = (date: Date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+function DateField({ value, onChange }: { value: string; onChange: (day: string) => void }) {
+  const { c } = useTheme();
+  if (Platform.OS === 'ios') {
+    return <DateTimePicker value={toDate(value)} mode="date" display="compact" onValueChange={(_, date) => onChange(fromDate(date))} style={styles.iosDate} />;
+  }
+  const open = () => DateTimePickerAndroid.open({ value: toDate(value), mode: 'date', onValueChange: (_, date) => onChange(fromDate(date)) });
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${value} 날짜 고르기`} onPress={open} style={[s.input, styles.date, { borderColor: c.line }]}>
+      <Text style={[s.tabular, { color: c.fg, fontSize: 15 }]}>{value}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  main: { padding: 16, gap: 4 },
+  grow: { flexGrow: 1 },
+  main: { flexGrow: 1, padding: 16, gap: 4 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   total: { fontSize: 30 },
+  date: { justifyContent: 'center' },
+  iosDate: { alignSelf: 'flex-start' },
   scopes: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginVertical: 4 },
   radio: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
