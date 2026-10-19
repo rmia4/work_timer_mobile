@@ -49,7 +49,9 @@ jobs:
           EOF
 
       - name: APK 빌드
+        # v1.1.0까지의 태그는 gradlew에 실행 권한이 없다
         run: |
+          chmod +x gradlew
           ./gradlew assembleRelease
           cp app/build/outputs/apk/release/app-release.apk "work-timer-${TAG#v}.apk"
 
