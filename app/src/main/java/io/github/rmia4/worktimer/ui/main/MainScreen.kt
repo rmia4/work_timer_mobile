@@ -1,6 +1,10 @@
 package io.github.rmia4.worktimer.ui.main
 
-import android.content.Intent
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.edit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -14,42 +18,35 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rmia4.worktimer.WorkTimerApp
-import io.github.rmia4.worktimer.data.ORIGIN
+import io.github.rmia4.worktimer.notify.TaskNotification
 import io.github.rmia4.worktimer.ui.components.GearIcon
 import io.github.rmia4.worktimer.ui.components.palette
 import io.github.rmia4.worktimer.ui.log.LogView
 import io.github.rmia4.worktimer.ui.memo.MemoBoard
-import io.github.rmia4.worktimer.ui.settings.AccountDialog
-import io.github.rmia4.worktimer.ui.settings.AiDialogs
+import io.github.rmia4.worktimer.ui.settings.SettingsScreen
 import io.github.rmia4.worktimer.ui.summary.SummaryView
-import io.github.rmia4.worktimer.ui.theme.LocalTheme
 import io.github.rmia4.worktimer.ui.timer.TimerView
 import kotlinx.coroutines.delay
 
@@ -57,14 +54,18 @@ import kotlinx.coroutines.delay
 fun MainScreen(app: WorkTimerApp, key: String) {
     val vm = viewModel(key = key) { MainViewModel(app) }
     val c = palette()
-    val theme = LocalTheme.current
-    val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var menu by rememberSaveable { mutableStateOf(false) }
-    var ai by rememberSaveable { mutableStateOf(false) }
-    var account by rememberSaveable { mutableStateOf(false) }
     // 탭을 오가도 각 탭의 입력 내용(rememberSaveable)을 지킨다.
     val tabs = rememberSaveableStateHolder()
+    val pager = rememberPagerState(vm.view.ordinal) { Screen.entries.size }
+    // 탭을 빠르게 연달아 누르면 앞 넘김이 중간에 끊긴다. 페이지 사이에 걸친 채로는 고르지 않는다.
+    LaunchedEffect(pager.settledPage) {
+        if (pager.currentPageOffsetFraction == 0f) vm.select(Screen.entries[pager.settledPage])
+    }
+    // 아래 탭을 누르거나 다른 화면에서 탭을 바꾸면(예: 일지에서 수정) 그 탭으로 넘긴다.
+    LaunchedEffect(vm.view) {
+        if (pager.currentPage != vm.view.ordinal || pager.currentPageOffsetFraction != 0f) pager.animateScrollToPage(vm.view.ordinal)
+    }
 
     // 앱을 열 때·앞으로 돌아올 때 세션을 늘리고 다시 불러온다. 10초마다 다시 불러와 다른 기기의 변경을 반영한다.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -79,36 +80,43 @@ fun MainScreen(app: WorkTimerApp, key: String) {
         }
     }
 
+    // 알림으로 보여 줄 작업이 처음 생겼는데 알림 권한이 없으면 한 번만 묻는다(Android 13+). 이후는 설정에서 고를 때 묻는다.
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.notifyTask() }
+    LaunchedEffect(vm.task?.id, vm.notifyMode) {
+        if (Build.VERSION.SDK_INT < 33 || app.prefs.getBoolean(NOTIFY_ASKED, false)) return@LaunchedEffect
+        if (!TaskNotification.shouldShow(app, vm.task) || TaskNotification.allowed(app)) return@LaunchedEffect
+        app.prefs.edit { putBoolean(NOTIFY_ASKED, true) }
+        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    // 설정 페이지는 메인 화면 전체를 덮는다. 위의 새로고침·메모 저장은 그대로 돈다.
+    if (vm.settings) return SettingsScreen(vm) { vm.settings = false }
+
     Column(Modifier.fillMaxSize().background(c.page)) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp).background(c.bg).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(vm.view.title, Modifier.weight(1f).padding(horizontal = 8.dp), color = c.fg, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Box {
-                Box(
-                    Modifier
-                        .size(44.dp)
-                        .clickable(role = Role.Button) { menu = true }
-                        .semantics { contentDescription = "설정" },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(GearIcon, null, Modifier.size(20.dp), tint = c.muted) }
-                // 설정 버튼 아래에 붙는 메뉴. 바깥을 누르거나 뒤로 가기로 닫힌다.
-                DropdownMenu(menu, { menu = false }, containerColor = c.bg) {
-                    MenuItem("${if (c.dark) "라이트 모드" else "다크 모드"}로 전환") { menu = false; theme.toggle() }
-                    MenuItem("웹페이지 방문") { menu = false; context.startActivity(Intent(Intent.ACTION_VIEW, ORIGIN.toUri())) }
-                    MenuItem("AI 연결") { menu = false; ai = true }
-                    HorizontalDivider(color = c.line)
-                    MenuItem("계정 설정") { menu = false; account = true }
-                    MenuItem("로그아웃", enabled = !vm.busy) { menu = false; vm.logout() }
-                }
-            }
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clickable(role = Role.Button) { vm.settings = true }
+                    .semantics { contentDescription = "설정" },
+                contentAlignment = Alignment.Center,
+            ) { Icon(GearIcon, null, Modifier.size(20.dp), tint = c.muted) }
         }
         HorizontalDivider(color = c.line)
 
-        Box(Modifier.weight(1f).fillMaxWidth().imePadding()) {
-            tabs.SaveableStateProvider(vm.view.name) {
-                when (vm.view) {
+        // 좌우로 밀어 탭을 넘긴다. 넘김이 끝난 쪽을 고른 탭으로 삼는다.
+        HorizontalPager(
+            pager,
+            Modifier.weight(1f).fillMaxWidth().imePadding(),
+            key = { Screen.entries[it].name },
+            verticalAlignment = Alignment.Top, // 기본값(가운데)이면 내용이 짧은 탭이 화면 가운데에 뜬다.
+        ) { page ->
+            tabs.SaveableStateProvider(Screen.entries[page].name) {
+                when (Screen.entries[page]) {
                     Screen.Timer -> TimerView(vm)
                     Screen.Log -> LogView(vm)
                     Screen.Memo -> MemoBoard(vm.memos, collapsible = true, emptyText = "항상 표시할 메모를 남겨보세요.", scroll = true)
@@ -129,11 +137,6 @@ fun MainScreen(app: WorkTimerApp, key: String) {
         }
     }
 
-    if (ai) AiDialogs(vm.api) { ai = false }
-    if (account) AccountDialog(vm.api, onClose = { account = false }, onDeleted = vm::onDeleted, onAccountDeleted = vm::signedOut)
 }
 
-@Composable
-private fun MenuItem(text: String, enabled: Boolean = true, onClick: () -> Unit) {
-    DropdownMenuItem(text = { Text(text, color = palette().fg, fontSize = 15.sp) }, onClick = onClick, enabled = enabled)
-}
+private const val NOTIFY_ASKED = "notify_asked" // 알림 권한을 자동으로 물어봤는지

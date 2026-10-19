@@ -14,10 +14,13 @@ import io.github.rmia4.worktimer.data.CalendarDay
 import io.github.rmia4.worktimer.data.Task
 import io.github.rmia4.worktimer.data.errorText
 import io.github.rmia4.worktimer.data.json
+import io.github.rmia4.worktimer.notify.NotifyMode
+import io.github.rmia4.worktimer.notify.TaskNotification
 import io.github.rmia4.worktimer.ui.memo.MemoBoardState
 import io.github.rmia4.worktimer.util.today
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonPrimitive
@@ -34,6 +37,7 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
 
     var view by mutableStateOf(Screen.entries.firstOrNull { it.name == app.prefs.getString(VIEW_KEY, null) } ?: Screen.Timer)
         private set
+    var settings by mutableStateOf(false) // 설정 페이지를 열었는지
     var day by mutableStateOf(today()) // 일지에서 보는 날짜
         private set
     var loading by mutableStateOf(true) // 보고 있는 날짜의 기록을 아직 못 받았는지
@@ -50,6 +54,9 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
         private set
     var formKey by mutableIntStateOf(0) // 바꾸면 작업 폼을 비운다
         private set
+    var notifyMode by mutableStateOf(TaskNotification.mode(app)) // 기록 중 작업 알림 범위
+        private set
+    var finishRequest by mutableStateOf<String?>(null) // 알림의 종료·저장으로 연 작업 id
 
     // 작업 캘린더 캐시("YYYY-MM" → 그 달 기록). 저장하면 그 달을 지워 다시 불러온다.
     val months = mutableStateMapOf<String, Month>()
@@ -70,6 +77,20 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
     fun now() = System.currentTimeMillis() + offset
 
     private var request = 0 // 늦게 온 이전 조회 응답을 버리기 위한 번호
+    private var claimNext = false // 이 앱에서 측정을 시작·재개했다(다음 조회의 진행 중 작업을 알림 대상으로 기억한다)
+
+    init {
+        viewModelScope.launch { app.changed.collect { load() } }
+        viewModelScope.launch {
+            app.finishRequest.collect { id ->
+                if (id == null) return@collect
+                app.finishRequest.value = null
+                finishRequest = id
+                settings = false
+                select(Screen.Timer)
+            }
+        }
+    }
 
     fun select(v: Screen) {
         view = v
@@ -86,6 +107,11 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
                 val list = json.decodeFromJsonElement<List<Task>>(r.data["tasks"]!!)
                 if (list != tasks) tasks = list
                 offset = r.data["now"]!!.jsonPrimitive.long - System.currentTimeMillis()
+                if (claimNext) {
+                    claimNext = false
+                    task?.let { TaskNotification.claim(app, it.id) }
+                }
+                notifyTask()
                 loading = false
                 error = ""
             } catch (e: Exception) {
@@ -107,6 +133,7 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
                 if (r.status == 409) load()
                 return r.error?.takeIf { it.isNotEmpty() } ?: "저장에 실패했습니다."
             }
+            if (body["run"]?.jsonPrimitive?.booleanOrNull == true || body["action"]?.jsonPrimitive?.contentOrNull == "resume") claimNext = true
             load()
             months.remove(day.take(7))
             body["day"]?.jsonPrimitive?.contentOrNull?.let { months.remove(it.take(7)) }
@@ -126,6 +153,14 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
             if (!failed.isNullOrEmpty()) error = failed
             if (failed == null) onSuccess()
         }
+    }
+
+    fun notifyTask() = TaskNotification.update(app, task, offset)
+
+    fun selectNotify(mode: NotifyMode) {
+        notifyMode = mode
+        TaskNotification.setMode(app, mode)
+        notifyTask()
     }
 
     fun clearForm() {
@@ -171,6 +206,7 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
     }
 
     fun signedOut() {
+        TaskNotification.cancel(app)
         app.signIn.value = io.github.rmia4.worktimer.SignIn.SignedOut
     }
 
