@@ -71,27 +71,31 @@ private val Dark = Palette(
     activeOutline = Color(0xFF5D6570),
 )
 
-class ThemeControl(val palette: Palette, val toggle: () -> Unit)
+enum class ThemeMode { Light, Dark, System }
 
-val LocalTheme = staticCompositionLocalOf { ThemeControl(Light) {} }
+class ThemeControl(val palette: Palette, val mode: ThemeMode, val select: (ThemeMode) -> Unit)
 
-// 처음에는 기기 설정을 따르고, 직접 고르면 그 값을 저장한다(theme.js와 같은 규칙).
-// 기기의 밝은/어두운 모드가 바뀌면 고른 값을 지우고 기기 설정을 따른다.
+val LocalTheme = staticCompositionLocalOf { ThemeControl(Light, ThemeMode.System) {} }
+
+// 라이트·다크를 고르면 그 값을 저장하고, 기기 설정을 고르면 저장한 값을 지워 기기의 밝은/어두운 모드를 따른다.
+// 기기 모드가 바뀌면 isSystemInDarkTheme()이 바뀌어 기기 설정일 때 바로 반영된다.
 @Composable
 fun WorkTimerTheme(prefs: SharedPreferences, content: @Composable () -> Unit) {
     val system = isSystemInDarkTheme()
-    var chosen by remember { mutableStateOf(prefs.getString(KEY, null)?.let { it == "dark" }) }
-    var seenSystem by remember { mutableStateOf(system) }
-    if (system != seenSystem) {
-        seenSystem = system
-        chosen = null
-        prefs.edit { remove(KEY) }
+    var mode by remember {
+        mutableStateOf(when (prefs.getString(KEY, null)) { "dark" -> ThemeMode.Dark; "light" -> ThemeMode.Light; else -> ThemeMode.System })
     }
-    val dark = chosen ?: system
+    val dark = when (mode) { ThemeMode.Dark -> true; ThemeMode.Light -> false; ThemeMode.System -> system }
     val palette = if (dark) Dark else Light
-    val control = ThemeControl(palette) {
-        chosen = !dark
-        prefs.edit { putString(KEY, if (!dark) "dark" else "light") }
+    val control = ThemeControl(palette, mode) { m ->
+        mode = m
+        prefs.edit {
+            when (m) {
+                ThemeMode.Dark -> putString(KEY, "dark")
+                ThemeMode.Light -> putString(KEY, "light")
+                ThemeMode.System -> remove(KEY)
+            }
+        }
     }
     val scheme = if (dark) darkColorScheme(primary = palette.accent, background = palette.page, surface = palette.bg)
     else lightColorScheme(primary = palette.accent, background = palette.page, surface = palette.bg)

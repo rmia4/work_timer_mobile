@@ -34,6 +34,7 @@ class MainViewModel(private val app: WorkTimerApp) : ViewModel() {
 
     var view by mutableStateOf(Screen.entries.firstOrNull { it.name == app.prefs.getString(VIEW_KEY, null) } ?: Screen.Timer)
         private set
+    var settings by mutableStateOf(false) // 설정 페이지를 열었는지
     var day by mutableStateOf(today()) // 일지에서 보는 날짜
         private set
     var loading by mutableStateOf(true) // 보고 있는 날짜의 기록을 아직 못 받았는지
