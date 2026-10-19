@@ -58,9 +58,14 @@ fun MainScreen(app: WorkTimerApp, key: String) {
     // 탭을 오가도 각 탭의 입력 내용(rememberSaveable)을 지킨다.
     val tabs = rememberSaveableStateHolder()
     val pager = rememberPagerState(vm.view.ordinal) { Screen.entries.size }
-    LaunchedEffect(pager.settledPage) { vm.select(Screen.entries[pager.settledPage]) }
+    // 탭을 빠르게 연달아 누르면 앞 넘김이 중간에 끊긴다. 페이지 사이에 걸친 채로는 고르지 않는다.
+    LaunchedEffect(pager.settledPage) {
+        if (pager.currentPageOffsetFraction == 0f) vm.select(Screen.entries[pager.settledPage])
+    }
     // 아래 탭을 누르거나 다른 화면에서 탭을 바꾸면(예: 일지에서 수정) 그 탭으로 넘긴다.
-    LaunchedEffect(vm.view) { if (pager.settledPage != vm.view.ordinal) pager.animateScrollToPage(vm.view.ordinal) }
+    LaunchedEffect(vm.view) {
+        if (pager.currentPage != vm.view.ordinal || pager.currentPageOffsetFraction != 0f) pager.animateScrollToPage(vm.view.ordinal)
+    }
 
     // 앱을 열 때·앞으로 돌아올 때 세션을 늘리고 다시 불러온다. 10초마다 다시 불러와 다른 기기의 변경을 반영한다.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -104,7 +109,12 @@ fun MainScreen(app: WorkTimerApp, key: String) {
         HorizontalDivider(color = c.line)
 
         // 좌우로 밀어 탭을 넘긴다. 넘김이 끝난 쪽을 고른 탭으로 삼는다.
-        HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth().imePadding(), key = { Screen.entries[it].name }) { page ->
+        HorizontalPager(
+            pager,
+            Modifier.weight(1f).fillMaxWidth().imePadding(),
+            key = { Screen.entries[it].name },
+            verticalAlignment = Alignment.Top, // 기본값(가운데)이면 내용이 짧은 탭이 화면 가운데에 뜬다.
+        ) { page ->
             tabs.SaveableStateProvider(Screen.entries[page].name) {
                 when (Screen.entries[page]) {
                     Screen.Timer -> TimerView(vm)
