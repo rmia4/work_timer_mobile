@@ -1,5 +1,6 @@
 package io.github.rmia4.worktimer
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.rmia4.worktimer.notify.TaskNotification
 import io.github.rmia4.worktimer.ui.components.palette
 import io.github.rmia4.worktimer.ui.login.LoginScreen
 import io.github.rmia4.worktimer.ui.main.MainScreen
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as WorkTimerApp
+        if (savedInstanceState == null) openFinish(intent)
         setContent {
             WorkTimerTheme(app.prefs) {
                 val c = palette()
@@ -45,6 +48,16 @@ class MainActivity : ComponentActivity() {
                 Box(Modifier.fillMaxSize().background(c.bg).safeDrawingPadding()) { Root(app) }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openFinish(intent)
+    }
+
+    // 알림의 종료·저장 버튼으로 열었으면 타이머 화면에 업무 결과 저장 대화상자를 띄우게 한다.
+    private fun openFinish(intent: Intent) {
+        intent.getStringExtra(TaskNotification.FINISH)?.let { (application as WorkTimerApp).finishRequest.value = it }
     }
 
     // 뒤로 가기를 처음 누르면 알리고, 2초 안에 다시 누르면 앱을 닫는다. 대화상자·메뉴가 열려 있으면 그쪽이 먼저 닫힌다.

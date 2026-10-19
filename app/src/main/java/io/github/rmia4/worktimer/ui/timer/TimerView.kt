@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +84,11 @@ fun TimerView(vm: MainViewModel) {
 private fun ActiveTask(vm: MainViewModel, task: Task) {
     val c = palette()
     var finishing by remember { mutableStateOf<Task?>(null) } // 종료·저장 대화상자를 열 때의 진행 작업
+    // 알림의 종료·저장 버튼으로 열었으면 바로 대화상자를 띄운다.
+    LaunchedEffect(vm.finishRequest) {
+        vm.finishRequest?.let { if (it == task.id) finishing = task }
+        vm.finishRequest = null
+    }
     Column(Modifier.fillMaxWidth().background(c.active, RoundedCornerShape(8.dp)).padding(16.dp)) {
         Text("작업 스톱워치 · ${statusLabel(task.status)}", color = c.activeMuted, fontSize = 13.sp)
         Text(task.title, Modifier.padding(vertical = 4.dp), color = c.activeText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
