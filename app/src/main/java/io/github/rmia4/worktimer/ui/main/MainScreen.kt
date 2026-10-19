@@ -1,5 +1,10 @@
 package io.github.rmia4.worktimer.ui.main
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.edit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,6 +40,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rmia4.worktimer.WorkTimerApp
+import io.github.rmia4.worktimer.notify.TaskNotification
 import io.github.rmia4.worktimer.ui.components.GearIcon
 import io.github.rmia4.worktimer.ui.components.palette
 import io.github.rmia4.worktimer.ui.log.LogView
@@ -67,6 +73,15 @@ fun MainScreen(app: WorkTimerApp, key: String) {
             delay(10_000)
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !vm.busy) vm.load()
         }
+    }
+
+    // 알림으로 보여 줄 작업이 처음 생겼는데 알림 권한이 없으면 한 번만 묻는다(Android 13+). 이후는 설정에서 고를 때 묻는다.
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.notifyTask() }
+    LaunchedEffect(vm.task?.id, vm.notifyMode) {
+        if (Build.VERSION.SDK_INT < 33 || app.prefs.getBoolean(NOTIFY_ASKED, false)) return@LaunchedEffect
+        if (!TaskNotification.shouldShow(app, vm.task) || TaskNotification.allowed(app)) return@LaunchedEffect
+        app.prefs.edit { putBoolean(NOTIFY_ASKED, true) }
+        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     // 설정 페이지는 메인 화면 전체를 덮는다. 위의 새로고침·메모 저장은 그대로 돈다.
@@ -113,3 +128,5 @@ fun MainScreen(app: WorkTimerApp, key: String) {
     }
 
 }
+
+private const val NOTIFY_ASKED = "notify_asked" // 알림 권한을 자동으로 물어봤는지

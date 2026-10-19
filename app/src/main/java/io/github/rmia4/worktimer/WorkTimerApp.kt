@@ -7,6 +7,8 @@ import android.content.SharedPreferences
 import io.github.rmia4.worktimer.data.Api
 import io.github.rmia4.worktimer.data.CookieStore
 import io.github.rmia4.worktimer.data.SavedCookieJar
+import io.github.rmia4.worktimer.notify.TaskNotification
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -20,6 +22,8 @@ class WorkTimerApp : Application() {
     lateinit var api: Api
         private set
     val signIn = MutableStateFlow(SignIn.Checking)
+    val changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1) // 알림 버튼으로 기록을 바꿨다(열린 화면이 다시 불러온다)
+    val finishRequest = MutableStateFlow<String?>(null) // 알림의 종료·저장으로 앱을 열었을 때의 작업 id
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +37,9 @@ class WorkTimerApp : Application() {
             .cookieJar(SavedCookieJar(store))
             .callTimeout(30, TimeUnit.SECONDS)
             .build()
-        api = Api(client) { signIn.value = SignIn.SignedOut }
+        api = Api(client) {
+            signIn.value = SignIn.SignedOut
+            TaskNotification.cancel(this)
+        }
     }
 }
