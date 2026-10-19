@@ -15,7 +15,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.rmia4.worktimer"
+        applicationId = "com.rmia4.workTimer"
         minSdk = 26
         targetSdk = 37
         versionCode = 2

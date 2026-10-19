@@ -9,7 +9,7 @@
 - 푸시에는 "바뀌었음"만 담는다. 받은 기기가 `/api/tasks`를 다시 조회해 알림을 그린다.
 
 ### 먼저 준비 (직접)
-- [ ] Firebase 프로젝트 만들고 Android 앱(`io.github.rmia4.worktimer`) 등록 → `app/google-services.json`
+- [ ] Firebase 프로젝트 만들고 Android 앱(`com.rmia4.workTimer`) 등록 → `app/google-services.json`
 - [ ] FCM 서비스 계정 키, VAPID 키 쌍 → Vercel 환경 변수
 
 ### 1. 서버 (work_timer)
